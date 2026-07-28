@@ -1,6 +1,6 @@
 {
   "name": "adhd-caveman",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "ADHD-shaped, caveman-mouthed output for Codex. Action first, numbered steps, few tokens.",
   "author": {
     "name": "brandonk"

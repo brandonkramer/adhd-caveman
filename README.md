@@ -6,38 +6,43 @@ ADHD shape + caveman mouth for coding agents.
 - **Mouth** from [caveman](https://github.com/JuliusBrussee/caveman): drop filler, keep substance, levels `lite|full|ultra`.
 - **Conflict rule:** structure always beats compression.
 
-Always-on is a **SessionStart hook**, not `CLAUDE.md` / `AGENTS.md`.
+Always-on is **hooks** (SessionStart + UserPromptSubmit + PreCompact), not `CLAUDE.md` / `AGENTS.md`.
 
 ```
-source of truth          always-on                    measure
-────────────────         ─────────                    ───────
-skills/.../SKILL.md  →   SessionStart hook        +   evals/ + LOOP.md
-                         (Claude Code + Codex)        /loop-adhd-caveman-cycle
+source of truth          always-on                         measure
+────────────────         ─────────                         ───────
+skills/.../SKILL.md  →   settings.json hooks (reliable) +  evals/ + LOOP.md
+                         plugin hooks (best-effort)        /loop-adhd-caveman-cycle
 ```
 
 ## Install
+
+### Agent Skills (2026 default discovery)
+
+```bash
+npx skills add brandonkramer/adhd-caveman -g -a claude,codex,cursor -y
+```
 
 ### Claude Code
 
 ```bash
 claude plugin marketplace add brandonkramer/adhd-caveman
 claude plugin install adhd-caveman@adhd-caveman
-# Reliable always-on (recommended): user settings hooks — plugin SessionStart
-# often runs but Claude interactive mode drops plugin-injected context.
+# Required for reliable always-on in interactive Claude:
 python3 scripts/install_claude_hooks.py
+# Optional badge:
+python3 scripts/install_claude_hooks.py --with-statusline
 ```
 
-Restart Claude (new session) after install.
+Restart Claude (new session). Update marketplace after pulls: `claude plugin marketplace update adhd-caveman`.
 
 | Want | Do |
 |------|-----|
-| Always on | Plugin **plus** `install_claude_hooks.py` (settings.json) |
+| Always on | Plugin **plus** `install_claude_hooks.py` |
 | Off permanently | `touch ~/.claude/.adhd-caveman-off` |
 | Off this session | Say `normal mode` / `stop caveman` / `stop adhd mode` |
 | Intensity | `/adhd-caveman lite\|full\|ultra` |
 | Uninstall settings hooks | `python3 scripts/install_claude_hooks.py --uninstall` |
-
-`UserPromptSubmit` also reinjects a short reminder each turn (caveman pattern) so the voice survives compaction / competing plugins.
 
 ### Codex
 
@@ -46,63 +51,48 @@ codex plugin marketplace add brandonkramer/adhd-caveman --ref main
 codex plugin add adhd-caveman@adhd-caveman
 ```
 
-Then type `$adhd-caveman`. For SessionStart always-on, **trust the plugin hooks**
-(` /hooks ` in Codex) — Codex skips bundled hooks until trusted.
-
-| Want | Do |
-|------|-----|
-| Always on | Install plugin + trust hooks |
-| Off permanently | `touch ~/.codex/.adhd-caveman-off` |
-| Off this session | Say `normal mode` / `stop caveman` / `stop adhd mode` |
-| On demand | `$adhd-caveman` (no AGENTS.md paste) |
+Trust plugin hooks (`/hooks`). Off: `touch ~/.codex/.adhd-caveman-off`.
 
 ### Cursor
 
-- Skill: `.cursor/skills/adhd-caveman/SKILL.md`
-- Loop cycle: `/loop-adhd-caveman-cycle`
-- No always-on `AGENTS.md` — invoke the skill, or add a Cursor rule if you want project-wide always-on.
+- Skill: `.cursor/skills/adhd-caveman/SKILL.md` or `npx skills add … -a cursor`
+- Loop: `/loop-adhd-caveman-cycle`
+
+### Gemini CLI
+
+```bash
+gemini extensions install https://github.com/brandonkramer/adhd-caveman
+```
+
+Uses `GEMINI.md` → `@./skills/adhd-caveman/SKILL.md`.
+
+### OpenClaw
+
+```bash
+python3 scripts/install_openclaw_soul.py
+```
+
+Appends a marker block to `~/.openclaw/workspace/SOUL.md` and copies the skill.
 
 ## Surfaces
 
 | File | Role |
 |------|------|
-| `skills/adhd-caveman/SKILL.md` | Canonical rules |
-| `hooks/session-start.sh` + `prompt-submit.sh` | SessionStart + per-turn reinforce |
-| `scripts/install_claude_hooks.py` | Wire user `settings.json` (reliable always-on) |
-| `hooks/hooks.json` | Plugin hook manifest (Claude + Codex) |
-| `.claude-plugin/` | Claude Code plugin manifest |
-| `.codex-plugin/` | Codex plugin manifest |
-| `.cursor/skills/.../SKILL.md` | Cursor copy (`scripts/sync_skill_copies.py`) |
+| `skills/adhd-caveman/SKILL.md` | Canonical rules (v0.2.0 plugin) |
+| `hooks/{session-start,prompt-submit,precompact}.sh` | Always-on + reinforce + compact |
+| `scripts/install_claude_hooks.py` | Wire user `settings.json` |
+| `GEMINI.md` + `gemini-extension.json` | Gemini CLI |
+| `docs/openclaw-SOUL.snippet.md` | OpenClaw always-on snippet |
+| `evals/` | Frozen cases + rubric |
 
 ## Optimize loop
 
 ```bash
 python3 scripts/check_static.py
 python3 scripts/run_evals.py validate
-
-# dry-run fixtures
-python3 scripts/run_evals.py run \
-  --runner cursor \
-  --condition baseline --condition candidate \
-  --fixture-dir evals/fixtures \
-  --case direct-answer --case multi-step-progress --case structure-vs-ultra \
-  --allow-unmetered \
-  --output evals/results/fixture-run.jsonl
 ```
 
-Live Codex arm (isolated):
-
-```bash
-python3 scripts/run_evals.py run \
-  --runner codex \
-  --condition candidate \
-  --condition-skill skills/adhd-caveman/SKILL.md \
-  --allow-unmetered \
-  --budget-usd 2 \
-  --output evals/results/responses.jsonl
-```
-
-In Cursor: **/loop-adhd-caveman-cycle**. Contract: `.agents/projects/adhd-caveman/`.
+In Cursor: **/loop-adhd-caveman-cycle**.
 
 ## Credits
 
@@ -111,4 +101,4 @@ In Cursor: **/loop-adhd-caveman-cycle**. Contract: `.agents/projects/adhd-cavema
 
 ## License
 
-MIT.
+MIT

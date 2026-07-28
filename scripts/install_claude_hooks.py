@@ -3,14 +3,17 @@
 
 Plugin SessionStart often runs but Claude interactive mode drops plugin
 additionalContext. User-level settings.json hooks still inject. This copies
-hooks+skill to a stable dir under ~/.claude/adhd-caveman/ and registers:
+hooks+skill to ~/.claude/adhd-caveman/ and registers:
 
-  - SessionStart  → session-start.sh (full skill body)
-  - UserPromptSubmit → prompt-submit.sh (short per-turn reinforce)
+  - SessionStart     → session-start.sh (full skill, JSON additionalContext)
+  - UserPromptSubmit → prompt-submit.sh (per-turn reinforce)
+  - PreCompact       → precompact.sh (re-assert after compression)
+  - statusLine       → statusline.sh (only if none configured)
 
 Usage:
   python3 scripts/install_claude_hooks.py
   python3 scripts/install_claude_hooks.py --uninstall
+  python3 scripts/install_claude_hooks.py --with-statusline
 """
 
 from __future__ import annotations
@@ -18,11 +21,18 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MARKER = "adhd-caveman"
+HOOK_FILES = (
+    "common.sh",
+    "session-start.sh",
+    "prompt-submit.sh",
+    "precompact.sh",
+    "statusline.sh",
+    "hooks.json",
+)
 
 
 def claude_dir() -> Path:
@@ -43,7 +53,7 @@ def sync_files(dest: Path) -> None:
     skills = dest / "skills" / "adhd-caveman"
     hooks.mkdir(parents=True, exist_ok=True)
     skills.mkdir(parents=True, exist_ok=True)
-    for name in ("session-start.sh", "prompt-submit.sh", "hooks.json"):
+    for name in HOOK_FILES:
         src = ROOT / "hooks" / name
         if not src.is_file():
             raise SystemExit(f"missing {src}")
@@ -75,71 +85,84 @@ def strip_marker(hooks_list: list) -> list:
     return [e for e in hooks_list if not has_marker(e)]
 
 
-def wire(settings: dict, dest: Path) -> dict:
+def hook_entry(command: str, status: str, matcher: str | None = None) -> dict:
+    entry: dict = {
+        "hooks": [
+            {
+                "type": "command",
+                "command": command,
+                "timeout": 5,
+                "statusMessage": status,
+            }
+        ]
+    }
+    if matcher:
+        entry["matcher"] = matcher
+    return entry
+
+
+def wire(settings: dict, dest: Path, with_statusline: bool) -> dict:
     hooks = settings.setdefault("hooks", {})
     start = strip_marker(list(hooks.get("SessionStart") or []))
     prompt = strip_marker(list(hooks.get("UserPromptSubmit") or []))
-
-    session_cmd = f'sh "{dest / "hooks" / "session-start.sh"}"'
-    prompt_cmd = f'sh "{dest / "hooks" / "prompt-submit.sh"}"'
+    compact = strip_marker(list(hooks.get("PreCompact") or []))
 
     start.append(
-        {
-            "matcher": "startup|resume|clear|compact",
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": session_cmd,
-                    "timeout": 5,
-                    "statusMessage": "adhd-caveman session start…",
-                }
-            ],
-        }
+        hook_entry(
+            f'sh "{dest / "hooks" / "session-start.sh"}"',
+            "adhd-caveman session start…",
+            matcher="startup|resume|clear|compact",
+        )
     )
     prompt.append(
-        {
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": prompt_cmd,
-                    "timeout": 5,
-                    "statusMessage": "adhd-caveman prompt reinforce…",
-                }
-            ],
-        }
+        hook_entry(
+            f'sh "{dest / "hooks" / "prompt-submit.sh"}"',
+            "adhd-caveman prompt reinforce…",
+        )
+    )
+    compact.append(
+        hook_entry(
+            f'sh "{dest / "hooks" / "precompact.sh"}"',
+            "adhd-caveman precompact…",
+        )
     )
     hooks["SessionStart"] = start
     hooks["UserPromptSubmit"] = prompt
+    hooks["PreCompact"] = compact
     settings["hooks"] = hooks
+
+    if with_statusline and not settings.get("statusLine"):
+        settings["statusLine"] = {
+            "type": "command",
+            "command": f'bash "{dest / "hooks" / "statusline.sh"}"',
+        }
     return settings
 
 
 def unwire(settings: dict) -> dict:
     hooks = settings.get("hooks") or {}
-    if "SessionStart" in hooks:
-        hooks["SessionStart"] = strip_marker(list(hooks["SessionStart"]))
-        if not hooks["SessionStart"]:
-            del hooks["SessionStart"]
-    if "UserPromptSubmit" in hooks:
-        hooks["UserPromptSubmit"] = strip_marker(list(hooks["UserPromptSubmit"]))
-        if not hooks["UserPromptSubmit"]:
-            del hooks["UserPromptSubmit"]
+    for key in ("SessionStart", "UserPromptSubmit", "PreCompact"):
+        if key in hooks:
+            hooks[key] = strip_marker(list(hooks[key]))
+            if not hooks[key]:
+                del hooks[key]
     if hooks:
         settings["hooks"] = hooks
     elif "hooks" in settings:
         del settings["hooks"]
+    sl = settings.get("statusLine")
+    if isinstance(sl, dict) and MARKER in (sl.get("command") or ""):
+        del settings["statusLine"]
+    elif isinstance(sl, str) and MARKER in sl:
+        del settings["statusLine"]
     return settings
 
 
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--uninstall", action="store_true")
-    p.add_argument(
-        "--settings",
-        type=Path,
-        default=None,
-        help="Override settings.json path (default ~/.claude/settings.json)",
-    )
+    p.add_argument("--with-statusline", action="store_true")
+    p.add_argument("--settings", type=Path, default=None)
     args = p.parse_args()
     dest = install_dir()
     settings_file = args.settings or settings_path()
@@ -161,13 +184,17 @@ def main() -> int:
     data = load_settings(settings_file)
     if settings_file.is_file():
         shutil.copy2(settings_file, settings_file.with_suffix(".json.bak"))
-    data = wire(data, dest)
+    data = wire(data, dest, with_statusline=args.with_statusline)
     settings_file.parent.mkdir(parents=True, exist_ok=True)
     settings_file.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     print(f"synced files → {dest}")
-    print(f"wired SessionStart + UserPromptSubmit → {settings_file}")
+    print(
+        "wired SessionStart + UserPromptSubmit + PreCompact → "
+        f"{settings_file}"
+    )
+    if args.with_statusline:
+        print("statusLine: configured (or left existing alone)")
     print("Restart Claude Code (new session) so hooks reload.")
-    print("Note: plugin may still fire SessionStart (flag file); settings inject is what reaches the model.")
     return 0
 
 

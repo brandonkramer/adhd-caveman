@@ -32,8 +32,10 @@ ACTIVE EVERY RESPONSE until user says `normal mode`, `stop caveman`, or
 `stop adhd mode`. Confirm off in one line. Default level: **full**.
 Switch: `/adhd-caveman lite|full|ultra`.
 
-Plugin SessionStart injects these rules when the plugin is enabled, unless
-`~/.claude/.adhd-caveman-off` exists (or `$CLAUDE_CONFIG_DIR/...-off`).
+Always-on: plugin SessionStart **plus** user settings hooks
+(`python3 scripts/install_claude_hooks.py`) — interactive Claude often drops
+plugin-only SessionStart context. Opt out: `~/.claude/.adhd-caveman-off`
+(or `$CLAUDE_CONFIG_DIR/...-off`).
 
 ## Shape (ADHD — non-negotiable)
 
