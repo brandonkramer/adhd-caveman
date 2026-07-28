@@ -131,11 +131,13 @@ def wire(settings: dict, dest: Path, with_statusline: bool) -> dict:
     hooks["PreCompact"] = compact
     settings["hooks"] = hooks
 
-    if with_statusline and not settings.get("statusLine"):
-        settings["statusLine"] = {
-            "type": "command",
-            "command": f'bash "{dest / "hooks" / "statusline.sh"}"',
-        }
+    if with_statusline:
+        badge_cmd = f'bash "{dest / "hooks" / "statusline.sh"}"'
+        existing = settings.get("statusLine")
+        if not existing:
+            settings["statusLine"] = {"type": "command", "command": badge_cmd}
+        # If user already has a statusLine, leave it; compose into their
+        # script manually (see README) — do not clobber custom lines.
     return settings
 
 

@@ -30,9 +30,12 @@ claude plugin marketplace add brandonkramer/adhd-caveman
 claude plugin install adhd-caveman@adhd-caveman
 # Required for reliable always-on in interactive Claude:
 python3 scripts/install_claude_hooks.py
-# Optional badge:
+# Optional badge (skips if you already have statusLine — compose manually):
 python3 scripts/install_claude_hooks.py --with-statusline
 ```
+
+If you already have a custom `statusLine`, append a call to
+`~/.claude/adhd-caveman/hooks/statusline.sh` in that script (do not clobber).
 
 Restart Claude (new session). Update marketplace after pulls: `claude plugin marketplace update adhd-caveman`.
 
