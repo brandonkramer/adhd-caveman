@@ -13,6 +13,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,6 +21,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "evals" / "cases.jsonl"
 RUBRIC = ROOT / "evals" / "rubric.md"
+
+# Process-scoped Cursor isolation (empty user skills/rules; seeded auth).
+_CURSOR_ISO_HOME: Path | None = None
+_CURSOR_ISO_WORKSPACE: Path | None = None
 
 WEIGHTS = {
     "correctness": 0.30,
@@ -121,18 +126,106 @@ def append_jsonl(output: Path, row: dict) -> None:
         fh.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
+def _keychain_secret(service: str, account: str) -> str | None:
+    """Read a macOS keychain secret. Never log the value."""
+    try:
+        proc = subprocess.run(
+            ["security", "find-generic-password", "-s", service, "-a", account, "-w"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+    if proc.returncode != 0:
+        return None
+    value = proc.stdout.strip()
+    return value or None
+
+
+def _seed_cursor_auth(iso_cursor: Path) -> None:
+    """Seed isolated ~/.cursor auth so HOME override still authenticates."""
+    real_auth = Path.home() / ".cursor" / "auth.json"
+    if real_auth.is_file():
+        target = iso_cursor / "auth.json"
+        shutil.copy2(real_auth, target)
+        target.chmod(0o600)
+        return
+
+    access = _keychain_secret("cursor-access-token", "cursor-user")
+    refresh = _keychain_secret("cursor-refresh-token", "cursor-user")
+    api_key = _keychain_secret("cursor-api-key", "cursor-user") or _keychain_secret(
+        "cursor", "cursor"
+    )
+    auth: dict[str, str] = {}
+    if access:
+        auth["accessToken"] = access
+    if refresh:
+        auth["refreshToken"] = refresh
+    if api_key and "accessToken" not in auth:
+        auth["apiKey"] = api_key
+    if not auth:
+        raise RuntimeError(
+            "cursor isolation: no auth.json or keychain credentials; "
+            "run `agent login` or set CURSOR_API_KEY"
+        )
+    target = iso_cursor / "auth.json"
+    target.write_text(json.dumps(auth), encoding="utf-8")
+    target.chmod(0o600)
+
+
+def ensure_cursor_isolation() -> tuple[Path, Path]:
+    """Empty-skill HOME + empty workspace for INV-ISOLATION-001 on Cursor.
+
+    User skills live under $HOME/.cursor/skills and $HOME/.agents/skills.
+    Baseline leaks when those contain adhd-caveman. We point HOME at a temp
+    tree with empty skill dirs and seeded auth only.
+    """
+    global _CURSOR_ISO_HOME, _CURSOR_ISO_WORKSPACE
+    if _CURSOR_ISO_HOME is not None and _CURSOR_ISO_WORKSPACE is not None:
+        return _CURSOR_ISO_HOME, _CURSOR_ISO_WORKSPACE
+
+    home = Path(tempfile.mkdtemp(prefix="adhd-caveman-cursor-home-"))
+    workspace = Path(tempfile.mkdtemp(prefix="adhd-caveman-cursor-ws-"))
+    cursor_dir = home / ".cursor"
+    cursor_dir.mkdir(parents=True)
+    (home / ".agents" / "skills").mkdir(parents=True)
+    (cursor_dir / "skills").mkdir()
+    (cursor_dir / "rules").mkdir()
+    (cursor_dir / "skills-cursor").mkdir()
+    _seed_cursor_auth(cursor_dir)
+    # Minimal CLI state; do not copy user cli-config (hooks/MCP/rules).
+    (cursor_dir / "agent-cli-state.json").write_text(
+        '{"version":1}\n', encoding="utf-8"
+    )
+    _CURSOR_ISO_HOME = home
+    _CURSOR_ISO_WORKSPACE = workspace
+    print(f"cursor isolation: HOME={home} workspace={workspace}", flush=True)
+    return home, workspace
+
+
 def run_cursor(prompt: str, system: str, model: str | None) -> tuple[str, float | None]:
-    bin_name = shutil.which("cursor") or shutil.which("agent")
+    bin_name = shutil.which("agent") or shutil.which("cursor")
     if not bin_name:
         raise RuntimeError("cursor/agent CLI not found")
-    # Prefer non-interactive print mode; flags vary by install.
-    cmd = [bin_name, "agent", "-p", "--force"]
+    home, workspace = ensure_cursor_isolation()
+    # Prefer `agent` entrypoint (avoids `cursor agent` nested argv quirks).
+    if Path(bin_name).name == "cursor":
+        cmd = [bin_name, "agent", "-p", "--mode", "ask", "--trust", "--workspace", str(workspace)]
+    else:
+        cmd = [bin_name, "-p", "--mode", "ask", "--trust", "--workspace", str(workspace)]
     if model:
         cmd.extend(["--model", model])
     full = prompt if not system else f"SYSTEM:\n{system}\n\nUSER:\n{prompt}"
     env = os.environ.copy()
-    # Reduce chance of picking up user always-on rules from other projects.
     env.pop("CURSOR_USER_RULES", None)
+    env["HOME"] = str(home)
+    # File store reads isolated auth.json; avoids real-home skill dirs.
+    env["AGENT_CLI_CREDENTIAL_STORE"] = "file"
+    if env.get("CURSOR_API_KEY"):
+        # Explicit API key also works; keep if operator provided one.
+        pass
     proc = subprocess.run(
         cmd,
         input=full,
@@ -141,9 +234,14 @@ def run_cursor(prompt: str, system: str, model: str | None) -> tuple[str, float 
         env=env,
         timeout=300,
         check=False,
+        cwd=str(workspace),
     )
     if proc.returncode != 0:
-        raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or "cursor failed")
+        err = (proc.stderr or proc.stdout or "cursor failed").strip()
+        # Never echo auth material if CLI dumps it.
+        if "crsr_" in err or "accessToken" in err:
+            err = "cursor failed (auth/error details redacted)"
+        raise RuntimeError(err)
     return proc.stdout.strip(), None
 
 
