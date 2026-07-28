@@ -1,0 +1,13 @@
+{
+  "name": "adhd-caveman",
+  "owner": {
+    "name": "brandonk"
+  },
+  "plugins": [
+    {
+      "name": "adhd-caveman",
+      "source": "./",
+      "description": "ADHD shape + caveman mouth for coding agents"
+    }
+  ]
+}

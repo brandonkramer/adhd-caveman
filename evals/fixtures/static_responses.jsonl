@@ -1,0 +1,5 @@
+{"id":"nc-preamble","text":"Great question! The answer is 102.","expect":"fail"}
+{"id":"nc-closer","text":"Missing auth header. Fix: add Bearer token.\n\nHope this helps!","expect":"fail"}
+{"id":"nc-uhoh","text":"Uh oh, the test is failing. There seems to be a problem.","expect":"fail"}
+{"id":"ok-direct","text":"102.","expect":"pass"}
+{"id":"ok-debug","text":"Missing Authorization header → 401. Add `Authorization: Bearer ${token}`. Next: re-run auth.spec.ts.","expect":"pass"}

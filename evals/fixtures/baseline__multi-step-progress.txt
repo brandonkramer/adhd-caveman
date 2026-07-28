@@ -1,0 +1,1 @@
+Sure! I'd be happy to help. You're making good progress on the migration. The schema is done, so next you probably want to think about backfilling. Let me know if you want a detailed plan!

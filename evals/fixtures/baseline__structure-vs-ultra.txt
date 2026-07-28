@@ -1,0 +1,1 @@
+You should update the password carefully. First maybe create a new password, then update apps, then the database, or wait, maybe the database first? Anyway hope that helps.

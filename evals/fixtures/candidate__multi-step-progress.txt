@@ -1,0 +1,8 @@
+Step 3/5 done: schema updated. Next: backfill column. ~15 min.
+
+1. Run backfill dry-run
+2. Check row counts
+3. Run backfill live
+4. Run auth tests
+
+Next: paste dry-run summary.

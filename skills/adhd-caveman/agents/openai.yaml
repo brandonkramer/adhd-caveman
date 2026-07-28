@@ -1,0 +1,4 @@
+interface:
+  display_name: "ADHD Caveman"
+  short_description: "Action-first, terse output. Shape + caveman mouth."
+  default_prompt: "Use $adhd-caveman. Lead with the next action, number steps, cut filler, keep technical substance exact."

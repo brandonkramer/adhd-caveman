@@ -1,0 +1,36 @@
+{
+  "name": "adhd-caveman",
+  "version": "0.1.0",
+  "description": "ADHD-shaped, caveman-mouthed output for Codex. Action first, numbered steps, few tokens.",
+  "author": {
+    "name": "brandonk"
+  },
+  "license": "MIT",
+  "keywords": [
+    "adhd",
+    "caveman",
+    "output-style",
+    "productivity",
+    "brevity",
+    "skills",
+    "codex"
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "ADHD Caveman",
+    "shortDescription": "Action-first, terse agent output",
+    "longDescription": "Merge of ADHD action-shape and caveman compression. Lead with the next action, number steps, restate state, cut filler. Structure beats compression.",
+    "developerName": "brandonk",
+    "category": "Productivity",
+    "capabilities": [
+      "Instructions"
+    ],
+    "defaultPrompt": [
+      "Use adhd-caveman for this task.",
+      "Make this answer action-first and terse.",
+      "Stay in adhd-caveman mode."
+    ],
+    "brandColor": "#2563EB"
+  }
+}

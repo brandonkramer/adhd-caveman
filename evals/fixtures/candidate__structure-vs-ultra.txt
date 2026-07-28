@@ -1,0 +1,9 @@
+Prod password rotate. Order matters. ~30 min. Confirm window first.
+
+1. Create new DB role/password; keep old role live
+2. Grant new role same privileges; verify login on staging
+3. Roll app config to new creds (one instance, then fleet)
+4. Revoke old role after all apps healthy
+5. Keep rollback: old role untouched until step 4 done
+
+Next: say if you use managed Postgres or self-hosted.
