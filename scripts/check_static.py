@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / "skills" / "adhd-caveman" / "SKILL.md"
 CURSOR_SKILL = ROOT / ".cursor" / "skills" / "adhd-caveman" / "SKILL.md"
 HOOK_SH = ROOT / "hooks" / "session-start.sh"
+HOOK_PROMPT = ROOT / "hooks" / "prompt-submit.sh"
 HOOK_JSON = ROOT / "hooks" / "hooks.json"
 CODEX_PLUGIN = ROOT / ".codex-plugin" / "plugin.json"
 CLAUDE_PLUGIN = ROOT / ".claude-plugin" / "plugin.json"
@@ -90,6 +91,17 @@ def check_voice_files() -> list[str]:
         if not HOOK_SH.stat().st_mode & 0o111:
             errors.append("hooks/session-start.sh is not executable")
 
+    if not HOOK_PROMPT.is_file():
+        errors.append("missing hooks/prompt-submit.sh")
+    elif not HOOK_PROMPT.stat().st_mode & 0o111:
+        errors.append("hooks/prompt-submit.sh is not executable")
+    else:
+        prompt_hook = HOOK_PROMPT.read_text(encoding="utf-8")
+        if "UserPromptSubmit" not in prompt_hook:
+            errors.append("prompt-submit.sh: missing UserPromptSubmit marker")
+        if "additionalContext" not in prompt_hook:
+            errors.append("prompt-submit.sh: missing additionalContext")
+
     if not HOOK_JSON.is_file():
         errors.append("missing hooks/hooks.json")
     else:
@@ -101,6 +113,13 @@ def check_voice_files() -> list[str]:
         else:
             if "session-start.sh" not in cmd:
                 errors.append("hooks.json: SessionStart must invoke session-start.sh")
+        try:
+            pcmd = data["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"]
+        except (KeyError, IndexError, TypeError):
+            errors.append("hooks.json: UserPromptSubmit command missing")
+        else:
+            if "prompt-submit.sh" not in pcmd:
+                errors.append("hooks.json: UserPromptSubmit must invoke prompt-submit.sh")
 
     if not CLAUDE_PLUGIN.is_file():
         errors.append("missing .claude-plugin/plugin.json")
@@ -224,6 +243,34 @@ def check_hook_smoke() -> list[str]:
         )
         if proc3.returncode != 0 or "ADHD-CAVEMAN MODE ACTIVE" not in proc3.stdout:
             errors.append("hook smoke: Codex PLUGIN_ROOT/CODEX_HOME path failed")
+
+        # UserPromptSubmit reinforcement (active flag present)
+        if HOOK_PROMPT.is_file():
+            (Path(tmp) / ".adhd-caveman-active").write_text("full\n", encoding="utf-8")
+            proc4 = subprocess.run(
+                ["sh", str(HOOK_PROMPT)],
+                input="please continue",
+                capture_output=True,
+                text=True,
+                env=env,
+                check=False,
+            )
+            if proc4.returncode != 0:
+                errors.append(f"prompt-submit smoke: exit {proc4.returncode}")
+            elif "additionalContext" not in proc4.stdout or "ADHD-CAVEMAN" not in proc4.stdout:
+                errors.append("prompt-submit smoke: missing reinforcement JSON")
+            proc5 = subprocess.run(
+                ["sh", str(HOOK_PROMPT)],
+                input="normal mode please",
+                capture_output=True,
+                text=True,
+                env=env,
+                check=False,
+            )
+            if proc5.returncode != 0:
+                errors.append(f"prompt-submit off smoke: exit {proc5.returncode}")
+            elif "off for this session" not in proc5.stdout:
+                errors.append("prompt-submit off smoke: expected off confirmation")
     return errors
 
 

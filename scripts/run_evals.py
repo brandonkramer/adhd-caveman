@@ -22,9 +22,17 @@ ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "evals" / "cases.jsonl"
 RUBRIC = ROOT / "evals" / "rubric.md"
 
-# Process-scoped Cursor isolation (empty user skills/rules; seeded auth).
+# Process-scoped isolation dirs (empty user skills/rules; seeded auth; empty ws).
 _CURSOR_ISO_HOME: Path | None = None
-_CURSOR_ISO_WORKSPACE: Path | None = None
+_EMPTY_WORKSPACE: Path | None = None
+
+
+def ensure_empty_workspace() -> Path:
+    """Shared empty cwd for live runners (no operator repo files)."""
+    global _EMPTY_WORKSPACE
+    if _EMPTY_WORKSPACE is None:
+        _EMPTY_WORKSPACE = Path(tempfile.mkdtemp(prefix="adhd-caveman-empty-ws-"))
+    return _EMPTY_WORKSPACE
 
 WEIGHTS = {
     "correctness": 0.30,
@@ -182,12 +190,12 @@ def ensure_cursor_isolation() -> tuple[Path, Path]:
     Baseline leaks when those contain adhd-caveman. We point HOME at a temp
     tree with empty skill dirs and seeded auth only.
     """
-    global _CURSOR_ISO_HOME, _CURSOR_ISO_WORKSPACE
-    if _CURSOR_ISO_HOME is not None and _CURSOR_ISO_WORKSPACE is not None:
-        return _CURSOR_ISO_HOME, _CURSOR_ISO_WORKSPACE
+    global _CURSOR_ISO_HOME
+    workspace = ensure_empty_workspace()
+    if _CURSOR_ISO_HOME is not None:
+        return _CURSOR_ISO_HOME, workspace
 
     home = Path(tempfile.mkdtemp(prefix="adhd-caveman-cursor-home-"))
-    workspace = Path(tempfile.mkdtemp(prefix="adhd-caveman-cursor-ws-"))
     cursor_dir = home / ".cursor"
     cursor_dir.mkdir(parents=True)
     (home / ".agents" / "skills").mkdir(parents=True)
@@ -200,7 +208,6 @@ def ensure_cursor_isolation() -> tuple[Path, Path]:
         '{"version":1}\n', encoding="utf-8"
     )
     _CURSOR_ISO_HOME = home
-    _CURSOR_ISO_WORKSPACE = workspace
     print(f"cursor isolation: HOME={home} workspace={workspace}", flush=True)
     return home, workspace
 
@@ -269,15 +276,48 @@ def run_claude(prompt: str, system: str, model: str | None) -> tuple[str, float 
     return proc.stdout.strip(), None
 
 
+def find_codex_bin() -> str | None:
+    """Resolve codex even when only available via nvm (not on non-interactive PATH)."""
+    found = shutil.which("codex")
+    if found:
+        return found
+    nvm_root = Path.home() / ".nvm" / "versions" / "node"
+    if nvm_root.is_dir():
+        candidates = sorted(nvm_root.glob("*/bin/codex"), reverse=True)
+        for path in candidates:
+            if path.is_file() or path.is_symlink():
+                return str(path)
+    return None
+
+
 def run_codex(prompt: str, system: str, model: str | None) -> tuple[str, float | None]:
-    bin_name = shutil.which("codex")
+    bin_name = find_codex_bin()
     if not bin_name:
-        raise RuntimeError("codex CLI not found")
+        raise RuntimeError("codex CLI not found (install @openai/codex or fix PATH/nvm)")
+    # Empty workspace avoids tool/agent drift into the operator's real repo.
+    workspace = ensure_empty_workspace()
     full = prompt if not system else f"{system}\n\n{prompt}"
-    cmd = [bin_name, "exec", "--ephemeral", "--skip-git-repo-check", full]
+    cmd = [
+        bin_name,
+        "exec",
+        "--ephemeral",
+        "--skip-git-repo-check",
+        "-s",
+        "read-only",
+        "-C",
+        str(workspace),
+        full,
+    ]
     if model:
         cmd.extend(["--model", model])
-    proc = subprocess.run(cmd, text=True, capture_output=True, timeout=300, check=False)
+    proc = subprocess.run(
+        cmd,
+        text=True,
+        capture_output=True,
+        timeout=180,
+        check=False,
+        cwd=str(workspace),
+    )
     if proc.returncode != 0:
         raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or "codex failed")
     return proc.stdout.strip(), None

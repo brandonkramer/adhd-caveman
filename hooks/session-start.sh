@@ -4,6 +4,11 @@
 # Works for Claude Code and Codex plugins. Always-on when the plugin is
 # enabled, unless the user opted out with an .adhd-caveman-off flag.
 #
+# Claude interactive mode often drops *plugin* SessionStart context even when
+# this script runs (side effects still work). For reliable always-on, also run:
+#   python3 scripts/install_claude_hooks.py
+# which wires this script into ~/.claude/settings.json (user hooks).
+#
 # Never blocks session start: any failure exits 0.
 # Pure POSIX sh (macOS/Linux/Git Bash).
 

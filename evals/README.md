@@ -45,8 +45,9 @@ Also supports `--runner claude` and `--runner codex` when those CLIs exist.
 Claude defaults to `claude-opus-5` (not Sonnet); pass `--model haiku` for cheap
 smoke. Cursor runner uses `agent -p --mode ask` in an **isolated HOME** (empty
 `~/.cursor/skills` + `~/.agents/skills`, seeded auth only) plus empty
-`--workspace`, so user always-on skills cannot leak into baseline. Without a
-CLI, dry-run fixtures under `--fixture-dir`.
+`--workspace`, so user always-on skills cannot leak into baseline. Codex runner
+uses `codex exec --ephemeral -s read-only` in an empty `-C` workspace (resolves
+nvm `codex` if needed). Without a CLI, dry-run fixtures under `--fixture-dir`.
 
 ## Score
 

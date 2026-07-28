@@ -22,14 +22,22 @@ skills/.../SKILL.md  →   SessionStart hook        +   evals/ + LOOP.md
 ```bash
 claude plugin marketplace add brandonkramer/adhd-caveman
 claude plugin install adhd-caveman@adhd-caveman
+# Reliable always-on (recommended): user settings hooks — plugin SessionStart
+# often runs but Claude interactive mode drops plugin-injected context.
+python3 scripts/install_claude_hooks.py
 ```
+
+Restart Claude (new session) after install.
 
 | Want | Do |
 |------|-----|
-| Always on (default) | Install plugin |
+| Always on | Plugin **plus** `install_claude_hooks.py` (settings.json) |
 | Off permanently | `touch ~/.claude/.adhd-caveman-off` |
 | Off this session | Say `normal mode` / `stop caveman` / `stop adhd mode` |
 | Intensity | `/adhd-caveman lite\|full\|ultra` |
+| Uninstall settings hooks | `python3 scripts/install_claude_hooks.py --uninstall` |
+
+`UserPromptSubmit` also reinjects a short reminder each turn (caveman pattern) so the voice survives compaction / competing plugins.
 
 ### Codex
 
@@ -59,7 +67,9 @@ Then type `$adhd-caveman`. For SessionStart always-on, **trust the plugin hooks*
 | File | Role |
 |------|------|
 | `skills/adhd-caveman/SKILL.md` | Canonical rules |
-| `hooks/session-start.sh` + `hooks/hooks.json` | Claude + Codex SessionStart injection |
+| `hooks/session-start.sh` + `prompt-submit.sh` | SessionStart + per-turn reinforce |
+| `scripts/install_claude_hooks.py` | Wire user `settings.json` (reliable always-on) |
+| `hooks/hooks.json` | Plugin hook manifest (Claude + Codex) |
 | `.claude-plugin/` | Claude Code plugin manifest |
 | `.codex-plugin/` | Codex plugin manifest |
 | `.cursor/skills/.../SKILL.md` | Cursor copy (`scripts/sync_skill_copies.py`) |
