@@ -160,10 +160,9 @@ def run_claude(prompt: str, system: str, model: str | None) -> tuple[str, float 
         "--output-format",
         "text",
     ]
-    if model:
-        cmd.extend(["--model", model])
-    # Else: let Claude CLI pick its current default (hardcoding a date-stamped
-    # id breaks when that snapshot retires).
+    # Prefer Opus 5 for quality gates; pass --model haiku for cheap smoke.
+    # Do not default to Sonnet (operator preference / cost-quality split).
+    cmd.extend(["--model", model or "claude-opus-5"])
     if system:
         cmd.extend(["--system-prompt", system])
     proc = subprocess.run(cmd, text=True, capture_output=True, timeout=300, check=False)

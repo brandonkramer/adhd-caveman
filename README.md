@@ -20,7 +20,7 @@ skills/.../SKILL.md  →   SessionStart hook        +   evals/ + LOOP.md
 ### Claude Code
 
 ```bash
-claude plugin marketplace add <you>/adhd-caveman
+claude plugin marketplace add brandonkramer/adhd-caveman
 claude plugin install adhd-caveman@adhd-caveman
 ```
 
@@ -34,7 +34,7 @@ claude plugin install adhd-caveman@adhd-caveman
 ### Codex
 
 ```bash
-codex plugin marketplace add <you>/adhd-caveman --ref main
+codex plugin marketplace add brandonkramer/adhd-caveman --ref main
 codex plugin add adhd-caveman@adhd-caveman
 ```
 

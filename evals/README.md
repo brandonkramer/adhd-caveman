@@ -42,8 +42,9 @@ python3 scripts/run_evals.py run \
 ```
 
 Also supports `--runner claude` and `--runner codex` when those CLIs exist.
-Cursor runner uses `cursor agent -p` / `agent` when available; otherwise dry-run
-fixtures under `--fixture-dir`.
+Claude defaults to `claude-opus-5` (not Sonnet); pass `--model haiku` for cheap
+smoke. Cursor runner uses `cursor agent -p` / `agent` when available; otherwise
+dry-run fixtures under `--fixture-dir`.
 
 ## Score
 
