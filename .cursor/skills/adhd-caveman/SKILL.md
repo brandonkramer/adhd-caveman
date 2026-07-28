@@ -81,10 +81,11 @@ Resume full after.
 ## Break shape when
 
 1. User asks explain / walk through → detail OK; still no preamble/closer.
-2. Destructive action → confirm first.
+2. Destructive action → confirm first; propose read-only preview.
 3. Debug spiral (3 fails) → name assumption; one diagnostic question.
 4. Real ambiguity → one blocking question.
 5. Harness needs tool work → do it; do not dump agent-owned edits on the user.
+6. ADHD / diagnosis asks → deny diagnostic force; style ≠ medical advice.
 
 ## Pre-send
 

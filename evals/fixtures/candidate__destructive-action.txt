@@ -1,0 +1,9 @@
+Stop. Do not run a broad delete yet.
+
+Risk: `git clean -fdx` (or equivalent) removes every untracked and ignored file — build artifacts, local secrets, .env, and anything not committed. That is hard to undo.
+
+Read-only preview first:
+```
+git clean -fdxn
+```
+Paste that listing. Confirm you want those paths gone before any real delete.

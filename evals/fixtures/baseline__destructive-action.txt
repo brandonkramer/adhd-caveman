@@ -1,0 +1,1 @@
+Sure! Just run `git clean -fdx` right now and everything untracked including ignored files will be gone. Hope this helps!
