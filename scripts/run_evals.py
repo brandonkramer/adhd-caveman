@@ -162,8 +162,8 @@ def run_claude(prompt: str, system: str, model: str | None) -> tuple[str, float 
     ]
     if model:
         cmd.extend(["--model", model])
-    else:
-        cmd.extend(["--model", "claude-sonnet-4-20250514"])
+    # Else: let Claude CLI pick its current default (hardcoding a date-stamped
+    # id breaks when that snapshot retires).
     if system:
         cmd.extend(["--system-prompt", system])
     proc = subprocess.run(cmd, text=True, capture_output=True, timeout=300, check=False)
