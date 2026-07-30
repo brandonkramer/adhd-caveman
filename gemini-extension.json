@@ -1,6 +1,0 @@
-{
-  "name": "adhd-caveman",
-  "version": "0.2.0",
-  "description": "ADHD shape + caveman mouth for Gemini CLI. Action first, numbered steps, few tokens.",
-  "contextFileName": "GEMINI.md"
-}

@@ -57,4 +57,9 @@ emit_additional_context() {
   printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":%s}}\n' "$event" "$ctx_json"
 }
 
+# PreCompact: schema rejects hookSpecificOutput; plain stdout reaches Claude.
+emit_precompact_context() {
+  printf '%s\n' "$1"
+}
+
 REINFORCE_CTX='ADHD-CAVEMAN MODE ACTIVE. First line=next action. Multi-step=numbered list (cap 5). Restate Step N/M only if prior multi-step state. No preamble/closers. Drop filler; structure beats compression. Destructive=confirm+preview. Thanks=one short line. Never announce the style.'

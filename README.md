@@ -61,14 +61,6 @@ Trust plugin hooks (`/hooks`). Off: `touch ~/.codex/.adhd-caveman-off`.
 - Skill: `.cursor/skills/adhd-caveman/SKILL.md` or `npx skills add … -a cursor`
 - Loop: `/loop-adhd-caveman-cycle`
 
-### Gemini CLI
-
-```bash
-gemini extensions install https://github.com/brandonkramer/adhd-caveman
-```
-
-Uses `GEMINI.md` → `@./skills/adhd-caveman/SKILL.md`.
-
 ### OpenClaw
 
 ```bash
@@ -84,7 +76,6 @@ Appends a marker block to `~/.openclaw/workspace/SOUL.md` and copies the skill.
 | `skills/adhd-caveman/SKILL.md` | Canonical rules (v0.2.0 plugin) |
 | `hooks/{session-start,prompt-submit,precompact}.sh` | Always-on + reinforce + compact |
 | `scripts/install_claude_hooks.py` | Wire user `settings.json` |
-| `GEMINI.md` + `gemini-extension.json` | Gemini CLI |
 | `docs/openclaw-SOUL.snippet.md` | OpenClaw always-on snippet |
 | `evals/` | Frozen cases + rubric |
 

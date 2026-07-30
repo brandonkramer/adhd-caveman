@@ -21,7 +21,6 @@ HOOK_PRECOMPACT = ROOT / "hooks" / "precompact.sh"
 HOOK_JSON = ROOT / "hooks" / "hooks.json"
 CODEX_PLUGIN = ROOT / ".codex-plugin" / "plugin.json"
 CLAUDE_PLUGIN = ROOT / ".claude-plugin" / "plugin.json"
-GEMINI_EXT = ROOT / "gemini-extension.json"
 CASES = ROOT / "evals" / "cases.jsonl"
 FIXTURES = ROOT / "evals" / "fixtures" / "static_responses.jsonl"
 
@@ -88,6 +87,8 @@ def check_voice_files() -> list[str]:
         errors.append("missing hooks/common.sh")
     elif "emit_additional_context" not in HOOK_COMMON.read_text(encoding="utf-8"):
         errors.append("common.sh: missing emit_additional_context")
+    elif "emit_precompact_context" not in HOOK_COMMON.read_text(encoding="utf-8"):
+        errors.append("common.sh: missing emit_precompact_context")
 
     if not HOOK_SH.is_file():
         errors.append("missing hooks/session-start.sh")
@@ -101,7 +102,7 @@ def check_voice_files() -> list[str]:
 
     for path, label, needle in (
         (HOOK_PROMPT, "prompt-submit.sh", "UserPromptSubmit"),
-        (HOOK_PRECOMPACT, "precompact.sh", "PreCompact"),
+        (HOOK_PRECOMPACT, "precompact.sh", "emit_precompact_context"),
     ):
         if not path.is_file():
             errors.append(f"missing hooks/{label}")
@@ -149,14 +150,6 @@ def check_voice_files() -> list[str]:
         if codex.get("hooks") not in ("./hooks/hooks.json", "hooks/hooks.json"):
             errors.append(".codex-plugin/plugin.json: hooks must point at hooks.json")
 
-    if not GEMINI_EXT.is_file():
-        errors.append("missing gemini-extension.json")
-    else:
-        gem = json.loads(GEMINI_EXT.read_text(encoding="utf-8"))
-        if gem.get("name") != "adhd-caveman" or gem.get("contextFileName") != "GEMINI.md":
-            errors.append("gemini-extension.json: invalid name/contextFileName")
-        if not (ROOT / "GEMINI.md").is_file():
-            errors.append("missing GEMINI.md")
     return errors
 
 
@@ -270,9 +263,9 @@ def check_hook_smoke() -> list[str]:
             errors.append("hook smoke: Codex PLUGIN_ROOT/CODEX_HOME path failed")
 
         (Path(tmp) / ".adhd-caveman-active").write_text("full\n", encoding="utf-8")
-        for script, label, expect in (
-            (HOOK_PROMPT, "prompt-submit", "UserPromptSubmit"),
-            (HOOK_PRECOMPACT, "precompact", "PreCompact"),
+        for script, label, expect, json_event in (
+            (HOOK_PROMPT, "prompt-submit", "UserPromptSubmit", True),
+            (HOOK_PRECOMPACT, "precompact", "re-assert after compact", False),
         ):
             if not script.is_file():
                 continue
@@ -287,7 +280,11 @@ def check_hook_smoke() -> list[str]:
             if proc_x.returncode != 0:
                 errors.append(f"{label} smoke: exit {proc_x.returncode}")
             elif expect not in proc_x.stdout or "ADHD-CAVEMAN" not in proc_x.stdout:
-                errors.append(f"{label} smoke: missing {expect} JSON")
+                errors.append(f"{label} smoke: missing {expect!r} in stdout")
+            elif json_event and "hookSpecificOutput" not in proc_x.stdout:
+                errors.append(f"{label} smoke: missing hookSpecificOutput JSON")
+            elif not json_event and "hookSpecificOutput" in proc_x.stdout:
+                errors.append(f"{label} smoke: PreCompact must use plain stdout, not hookSpecificOutput")
 
         proc5 = subprocess.run(
             ["sh", str(HOOK_PROMPT)],
