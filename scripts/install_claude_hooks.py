@@ -189,9 +189,9 @@ def main() -> int:
     data = wire(data, dest, with_statusline=args.with_statusline)
     settings_file.parent.mkdir(parents=True, exist_ok=True)
     settings_file.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    print(f"synced files → {dest}")
+    print(f"synced files -> {dest}")
     print(
-        "wired SessionStart + UserPromptSubmit + PreCompact → "
+        "wired SessionStart + UserPromptSubmit + PreCompact -> "
         f"{settings_file}"
     )
     if args.with_statusline:
